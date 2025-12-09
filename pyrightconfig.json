@@ -1,0 +1,31 @@
+{
+  "include": [
+    "api",
+    "backend"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/node_modules",
+    "**/dist",
+    "**/.venv"
+  ],
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": false,
+  "pythonVersion": "3.11",
+  "pythonPlatform": "All",
+  "typeCheckingMode": "basic",
+  "executionEnvironments": [
+    {
+      "root": "api",
+      "pythonVersion": "3.11",
+      "extraPaths": [
+        "backend"
+      ]
+    },
+    {
+      "root": "backend",
+      "pythonVersion": "3.11"
+    }
+  ]
+}
+
