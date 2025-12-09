@@ -21,16 +21,35 @@ try:
     # Create Mangum handler for Vercel
     # Mangum converts ASGI (FastAPI) to AWS Lambda/API Gateway format
     # Vercel's Python runtime uses AWS Lambda-compatible format
-    # The handler is a callable that receives (event, context) and returns a response
-    handler = Mangum(app, lifespan="off")
+    mangum_handler = Mangum(app, lifespan="off")
+    
+    # Wrap handler to ensure proper error handling
+    def handler(event, context):
+        try:
+            return mangum_handler(event, context)
+        except Exception as e:
+            import json
+            import traceback
+            return {
+                'statusCode': 500,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({
+                    'error': f'Handler error: {str(e)}',
+                    'traceback': traceback.format_exc()
+                })
+            }
 except Exception as e:
     # If there's an import error, create a simple error handler
     import json
-    def error_handler(event, context):
+    import traceback
+    def handler(event, context):
+        error_details = {
+            'error': f'Import error: {str(e)}',
+            'traceback': traceback.format_exc()
+        }
         return {
             'statusCode': 500,
             'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': f'Import error: {str(e)}'})
+            'body': json.dumps(error_details)
         }
-    handler = error_handler
 
