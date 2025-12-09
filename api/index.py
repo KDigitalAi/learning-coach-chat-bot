@@ -17,5 +17,10 @@ from mangum import Mangum
 from app.main import app
 
 # Create handler for Vercel
+# Vercel Python runtime looks for 'handler' variable
 handler = Mangum(app, lifespan="off")
+
+# Also export app for Vercel's FastAPI auto-detection (if needed)
+# This ensures compatibility with both approaches
+__all__ = ["handler", "app"]
 
