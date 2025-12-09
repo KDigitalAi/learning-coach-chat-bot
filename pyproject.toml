@@ -1,0 +1,6 @@
+[project]
+requires-python = ">=3.11,<3.12"
+
+[tool.vercel]
+runtime = "python3.11"
+
