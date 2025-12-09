@@ -29,31 +29,47 @@ if pythonpath:
     if pythonpath and os.path.exists(pythonpath) and pythonpath not in sys.path:
         sys.path.insert(0, pythonpath)
 
+# Import FastAPI app
+# The import should work now with backend in sys.path
+# Note: app.main is resolved at runtime after adding backend to sys.path
+# Settings are lazy-loaded, so this import should succeed even if env vars aren't set yet
 try:
-    # Import FastAPI app
-    # The import should work now with backend in sys.path
-    # Note: app.main is resolved at runtime after adding backend to sys.path
     from app.main import app  # type: ignore[import-untyped]
     
     # Wrap FastAPI app with Mangum for AWS Lambda/Vercel compatibility
     # lifespan="off" disables lifespan events which aren't supported in serverless
     handler = Mangum(app, lifespan="off")
     
-except ImportError as e:
-    # More detailed error for import issues
+except (ImportError, Exception) as e:
+    # Error handling - log but don't fail module import
+    # This allows Vercel to validate the function structure
     import logging
-    logging.error(f"Import Error - Failed to import FastAPI app")
-    logging.error(f"Current sys.path: {sys.path}")
-    logging.error(f"Backend path attempted: {backend_path}")
-    logging.error(f"Backend path exists: {os.path.exists(backend_path)}")
-    logging.error(f"Error details: {str(e)}")
-    raise
-except Exception as e:
-    # General error handling
-    import logging
-    logging.error(f"Failed to initialize FastAPI app: {str(e)}")
-    logging.error(f"Error type: {type(e).__name__}")
     import traceback
-    logging.error(traceback.format_exc())
-    raise
+    logging.basicConfig(level=logging.ERROR)
+    error_msg = (
+        f"Failed to initialize FastAPI app\n"
+        f"Error type: {type(e).__name__}\n"
+        f"Current sys.path: {sys.path}\n"
+        f"Backend path attempted: {backend_path}\n"
+        f"Backend path exists: {os.path.exists(backend_path)}\n"
+        f"PYTHONPATH env: {os.environ.get('PYTHONPATH', 'NOT SET')}\n"
+        f"Error details: {str(e)}\n"
+        f"Traceback: {traceback.format_exc()}"
+    )
+    logging.error(error_msg)
+    
+    # Create a handler that will return an error response
+    # This allows Vercel to validate the function even if initialization fails
+    def error_handler(event, context):
+        import json
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({
+                "error": "Failed to initialize application",
+                "message": str(e),
+                "type": type(e).__name__
+            })
+        }
+    handler = error_handler
 
