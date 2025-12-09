@@ -1,6 +1,9 @@
 """
 Vercel serverless function handler for FastAPI application.
 Uses Mangum to adapt FastAPI (ASGI) to Vercel's serverless function format.
+
+According to Vercel docs: https://vercel.com/docs/functions/serverless-functions/runtimes/python
+The handler must be a callable that receives (event, context) and returns a response.
 """
 import sys
 import os
@@ -14,23 +17,28 @@ backend_path = os.path.abspath(backend_path)
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
-try:
-    from mangum import Mangum
-    from app.main import app
+from mangum import Mangum
+from app.main import app
+
+# Create Mangum handler for Vercel
+# Mangum converts ASGI (FastAPI) to AWS Lambda/API Gateway format
+# Vercel's Python runtime uses AWS Lambda-compatible format
+# The handler is a callable that receives (event, context) and returns a response
+mangum_handler = Mangum(app, lifespan="off")
+
+# Export handler function for Vercel
+# Vercel expects a function named 'handler' that it can call
+def handler(event, context):
+    """
+    Vercel serverless function handler.
+    This function is called by Vercel for each request to /api/* routes.
     
-    # Create Mangum handler for Vercel
-    # Mangum converts ASGI (FastAPI) to AWS Lambda/API Gateway format
-    # Vercel's Python runtime uses AWS Lambda-compatible format
-    # The handler is a callable that receives (event, context) and returns a response
-    handler = Mangum(app, lifespan="off")
-except Exception as e:
-    # If there's an import error, create a simple error handler
-    import json
-    def error_handler(event, context):
-        return {
-            'statusCode': 500,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': f'Import error: {str(e)}'})
-        }
-    handler = error_handler
+    Args:
+        event: AWS Lambda event object (contains request data)
+        context: AWS Lambda context object
+    
+    Returns:
+        Response dictionary with statusCode, headers, and body
+    """
+    return mangum_handler(event, context)
 
