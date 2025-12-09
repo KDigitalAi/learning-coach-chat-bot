@@ -11,7 +11,7 @@ function App() {
 
   const updateConsent = async (sessionId, consent, onboardingData = null) => {
     try {
-      const response = await fetch('http://localhost:8000/api/onboarding/consent', {
+      const response = await fetch('/api/onboarding/consent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

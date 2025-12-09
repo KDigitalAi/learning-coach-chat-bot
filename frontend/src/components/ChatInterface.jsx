@@ -250,7 +250,7 @@ function ChatInterface({ sessionId }) {
     const saveInitialMessages = async () => {
       try {
         // Save welcome message
-        await fetch('http://localhost:8000/api/chat/save', {
+        await fetch('/api/chat/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -261,7 +261,7 @@ function ChatInterface({ sessionId }) {
           })
         })
         // Save first question
-        await fetch('http://localhost:8000/api/chat/save', {
+        await fetch('/api/chat/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -386,7 +386,7 @@ function ChatInterface({ sessionId }) {
     
     // Save answer to conversation history immediately
     try {
-      await fetch('http://localhost:8000/api/chat/save', {
+      await fetch('/api/chat/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -405,7 +405,7 @@ function ChatInterface({ sessionId }) {
       const welcomeMsg = messages[0]
       if (welcomeMsg) {
         try {
-          await fetch('http://localhost:8000/api/chat/save', {
+          await fetch('/api/chat/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -425,7 +425,7 @@ function ChatInterface({ sessionId }) {
     const questionMsg = messages[messages.length - 1]
     if (questionMsg && questionMsg.isOnboardingQuestion) {
       try {
-        await fetch('http://localhost:8000/api/chat/save', {
+        await fetch('/api/chat/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -474,7 +474,7 @@ function ChatInterface({ sessionId }) {
       
       // Save question to conversation history
       try {
-        await fetch('http://localhost:8000/api/chat/save', {
+        await fetch('/api/chat/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -493,7 +493,7 @@ function ChatInterface({ sessionId }) {
       
       // Save onboarding data to backend
       try {
-        await fetch('http://localhost:8000/api/onboarding/consent', {
+        await fetch('/api/onboarding/consent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -567,7 +567,7 @@ function ChatInterface({ sessionId }) {
       
       // Save welcome message to history
       try {
-        await fetch('http://localhost:8000/api/chat/save', {
+        await fetch('/api/chat/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -604,7 +604,7 @@ function ChatInterface({ sessionId }) {
     setCurrentResponse('')
 
     try {
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

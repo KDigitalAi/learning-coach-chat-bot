@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import chat, onboarding
+import os
 
 
 app = FastAPI(
@@ -9,10 +10,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Get allowed origins from environment or default to allow all
+# In production, set ALLOWED_ORIGINS in Vercel environment variables
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
+if allowed_origins_env == "*":
+    allowed_origins = ["*"]
+else:
+    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",")]
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

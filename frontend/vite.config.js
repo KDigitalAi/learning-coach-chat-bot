@@ -11,7 +11,12 @@ export default defineConfig({
         changeOrigin: true
       }
     }
-  }
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets'
+  },
+  base: '/' // Ensure relative paths work in production
 })
 
 
