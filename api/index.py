@@ -1,6 +1,11 @@
 """
 Vercel Serverless Function Wrapper for FastAPI
 This file wraps the FastAPI application to work with Vercel's serverless functions.
+
+Vercel Python serverless functions require:
+- File in api/ directory
+- Handler variable exported at module level
+- requirements.txt in same directory
 """
 from mangum import Mangum  # type: ignore[import-untyped]
 import sys
@@ -10,7 +15,7 @@ import os
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)  # Go up from api/ to project root
 backend_path = os.path.join(project_root, 'backend')
-backend_path = os.path.abspath(backend_path)  # Ensure absolute path
+backend_path = os.path.abspath(backend_path)
 
 # Add backend directory to Python path
 # Vercel sets PYTHONPATH=backend in vercel.json, but we also add it explicitly
@@ -30,8 +35,6 @@ if pythonpath:
         sys.path.insert(0, pythonpath)
 
 # Import FastAPI app
-# The import should work now with backend in sys.path
-# Note: app.main is resolved at runtime after adding backend to sys.path
 # Settings are lazy-loaded, so this import should succeed even if env vars aren't set yet
 try:
     from app.main import app  # type: ignore[import-untyped]
