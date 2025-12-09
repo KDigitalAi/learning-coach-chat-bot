@@ -1,0 +1,4 @@
+# Root requirements.txt for Vercel deployment
+# This file is used by Vercel to install Python dependencies for serverless functions
+-r backend/requirements.txt
+
