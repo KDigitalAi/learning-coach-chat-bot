@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import ChatInterface from './components/ChatInterface'
 import OnboardingModal from './components/OnboardingModal'
-import { API_BASE_URL } from './utils/api'
 import './App.css'
 
 function App() {
@@ -12,7 +11,7 @@ function App() {
 
   const updateConsent = async (sessionId, consent, onboardingData = null) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/onboarding/consent`, {
+      const response = await fetch('http://localhost:8000/api/onboarding/consent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
