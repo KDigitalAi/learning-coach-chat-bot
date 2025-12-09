@@ -3,6 +3,10 @@ import ChatInterface from './components/ChatInterface'
 import OnboardingModal from './components/OnboardingModal'
 import './App.css'
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+
+const buildApiUrl = (path) => `${API_BASE}${path}`
+
 function App() {
   const [sessionId, setSessionId] = useState(null)
   const [hasConsent, setHasConsent] = useState(false)
@@ -11,7 +15,7 @@ function App() {
 
   const updateConsent = async (sessionId, consent, onboardingData = null) => {
     try {
-      const response = await fetch('http://localhost:8000/api/onboarding/consent', {
+      const response = await fetch(buildApiUrl('/api/onboarding/consent'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

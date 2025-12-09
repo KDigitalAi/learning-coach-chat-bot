@@ -81,6 +81,12 @@ npm run dev
 
 4. Open the URL shown in the terminal (typically `http://localhost:5173`) in your browser
 
+### Deployment (Vercel)
+
+- This repository includes a `vercel.json` that builds the Vite frontend from `frontend/` and serves the SPA via `index.html` rewrites.
+- Set the env var `VITE_API_BASE_URL` in Vercel to the publicly reachable backend URL (e.g. `https://your-backend-host`). Leave it blank locally to use the Vite dev proxy.
+- Vercel build uses `npm ci && npm run build` inside `frontend` and publishes `frontend/dist`.
+
 ## 📚 API Endpoints
 
 ### POST `/api/onboarding/consent`
