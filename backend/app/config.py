@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings  # type: ignore
+from typing import Optional
 import os
 
 
@@ -68,6 +69,32 @@ def get_settings() -> Settings:
         raise ValueError(error_msg) from e
 
 
-# Initialize settings - this will fail fast if environment variables are missing
-# This is intentional to catch configuration errors early
-settings = get_settings()
+# Lazy initialization of settings
+# This allows the module to be imported even if environment variables aren't set yet
+# Settings will be loaded when first accessed
+_settings_instance: Optional[Settings] = None
+
+
+def _get_settings_instance() -> Settings:
+    """Get or create settings instance (lazy loading)."""
+    global _settings_instance
+    if _settings_instance is None:
+        _settings_instance = get_settings()
+    return _settings_instance
+
+
+# Create a settings object that loads lazily
+class LazySettings:
+    """Lazy-loading wrapper for settings to prevent import-time failures."""
+    
+    def __getattr__(self, name: str):
+        """Load settings when first accessed."""
+        return getattr(_get_settings_instance(), name)
+    
+    def __getitem__(self, name: str):
+        """Support dictionary-style access."""
+        return getattr(_get_settings_instance(), name)
+
+
+# Export settings as a lazy-loading object
+settings = LazySettings()
