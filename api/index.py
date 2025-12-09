@@ -10,6 +10,8 @@ Mangum handles the ASGI-to-Lambda conversion automatically.
 """
 import sys
 import os
+import json
+import traceback
 
 # Add backend directory to Python path
 # Get the absolute path to ensure it works in Vercel's environment
@@ -19,6 +21,10 @@ backend_path = os.path.abspath(backend_path)
 
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
+
+# Initialize handler variable
+mangum_handler = None
+init_error = None
 
 try:
     from mangum import Mangum
@@ -30,41 +36,38 @@ try:
     # Mangum handles async internally, so the handler can be synchronous
     mangum_handler = Mangum(app, lifespan="off")
     
-    # Export handler function for Vercel
-    # Vercel expects a function named 'handler' at module level
-    # The handler receives (event, context) and returns a response dict
-    def handler(event, context):
-        """
-        Vercel serverless function handler.
-        This function is called by Vercel for each request to /api/* routes.
-        
-        Args:
-            event: AWS Lambda event object (contains request data)
-                  - event['path']: The request path (e.g., '/api/chat')
-                  - event['httpMethod']: HTTP method (e.g., 'POST')
-                  - event['headers']: Request headers
-                  - event['body']: Request body (string)
-            context: AWS Lambda context object
-        
-        Returns:
-            Response dictionary with:
-            - statusCode: HTTP status code (e.g., 200)
-            - headers: Response headers dict
-            - body: Response body (string)
-        """
-        # Mangum handles the async FastAPI app internally
-        # It converts the ASGI app to Lambda-compatible format
-        return mangum_handler(event, context)
-        
 except Exception as e:
-    # Fallback error handler if imports fail
-    import json
-    import traceback
+    # Store error for later use
+    init_error = e
+    mangum_handler = None
+
+# Export handler function for Vercel
+# Vercel expects a function named 'handler' at module level
+# The handler receives (event, context) and returns a response dict
+def handler(event, context):
+    """
+    Vercel serverless function handler.
+    This function is called by Vercel for each request to /api/* routes.
     
-    def handler(event, context):
-        """Error handler for import failures."""
-        error_msg = str(e)
-        traceback_str = traceback.format_exc()
+    Args:
+        event: AWS Lambda event object (contains request data)
+              - event['path']: The request path (e.g., '/api/chat')
+              - event['httpMethod']: HTTP method (e.g., 'POST')
+              - event['headers']: Request headers
+              - event['body']: Request body (string)
+        context: AWS Lambda context object
+    
+    Returns:
+        Response dictionary with:
+        - statusCode: HTTP status code (e.g., 200)
+        - headers: Response headers dict
+        - body: Response body (string)
+    """
+    # Check if handler was initialized successfully
+    if mangum_handler is None:
+        # Return error response if initialization failed
+        error_msg = str(init_error) if init_error else "Unknown initialization error"
+        traceback_str = traceback.format_exc() if init_error else ""
         
         return {
             'statusCode': 500,
@@ -76,6 +79,25 @@ except Exception as e:
                 'error': 'Server initialization error',
                 'message': error_msg,
                 'traceback': traceback_str
+            })
+        }
+    
+    # Mangum handles the async FastAPI app internally
+    # It converts the ASGI app to Lambda-compatible format
+    try:
+        return mangum_handler(event, context)
+    except Exception as e:
+        # Handle runtime errors
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                'error': 'Runtime error',
+                'message': str(e),
+                'traceback': traceback.format_exc()
             })
         }
 
