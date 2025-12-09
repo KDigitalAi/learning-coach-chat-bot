@@ -15,8 +15,8 @@ if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
 try:
-    from mangum import Mangum
-    from app.main import app
+    from mangum import Mangum  # type: ignore
+    from app.main import app  # type: ignore
     
     # Create Mangum handler for Vercel
     # Mangum converts ASGI (FastAPI) to AWS Lambda/API Gateway format
