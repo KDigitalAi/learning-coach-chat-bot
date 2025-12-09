@@ -1,3 +1,5 @@
+# Copy dependencies from backend/requirements.txt
+# This ensures Vercel installs all required packages
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-dotenv==1.0.0
@@ -12,5 +14,4 @@ openai==1.12.0
 psycopg2-binary==2.9.9
 pgvector==0.2.4
 mangum==0.17.0
-
 
