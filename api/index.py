@@ -6,8 +6,13 @@ import sys
 import os
 
 # Add backend directory to Python path
-backend_path = os.path.join(os.path.dirname(__file__), '..', 'backend')
-sys.path.insert(0, backend_path)
+# Get the absolute path to ensure it works in Vercel's environment
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_path = os.path.join(current_dir, '..', 'backend')
+backend_path = os.path.abspath(backend_path)
+
+if backend_path not in sys.path:
+    sys.path.insert(0, backend_path)
 
 try:
     from mangum import Mangum
@@ -16,14 +21,16 @@ try:
     # Create Mangum handler for Vercel
     # Mangum converts ASGI (FastAPI) to AWS Lambda/API Gateway format
     # Vercel's Python runtime uses AWS Lambda-compatible format
+    # The handler is a callable that receives (event, context) and returns a response
     handler = Mangum(app, lifespan="off")
 except Exception as e:
-    # Fallback error handler if imports fail
+    # If there's an import error, create a simple error handler
     import json
-    
-    def handler(event, context):
+    def error_handler(event, context):
         return {
             'statusCode': 500,
             'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': 'Server initialization error', 'message': str(e)})
+            'body': json.dumps({'error': f'Import error: {str(e)}'})
         }
+    handler = error_handler
+
