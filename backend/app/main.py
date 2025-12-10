@@ -25,10 +25,16 @@ app.include_router(chat.router)
 
 @app.get("/")
 async def root():
+    """API root endpoint - only accessible when hitting the Python function directly"""
     return {
         "message": "Learning Coach API",
         "version": "1.0.0",
-        "status": "running"
+        "status": "running",
+        "endpoints": {
+            "chat": "/api/chat",
+            "onboarding": "/api/onboarding/consent",
+            "health": "/health"
+        }
     }
 
 
