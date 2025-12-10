@@ -4,6 +4,8 @@ Uses Mangum to adapt FastAPI (ASGI) to Vercel's serverless function format.
 """
 import sys
 import os
+import json
+import traceback
 
 # Add backend directory to Python path
 # Get the absolute path to ensure it works in Vercel's environment
@@ -14,42 +16,34 @@ backend_path = os.path.abspath(backend_path)
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
-try:
-    from mangum import Mangum  # type: ignore
-    from app.main import app  # type: ignore
-    
-    # Create Mangum handler for Vercel
-    # Mangum converts ASGI (FastAPI) to AWS Lambda/API Gateway format
-    # Vercel's Python runtime uses AWS Lambda-compatible format
-    mangum_handler = Mangum(app, lifespan="off")
-    
-    # Wrap handler to ensure proper error handling
-    def handler(event, context):
-        try:
-            return mangum_handler(event, context)
-        except Exception as e:
-            import json
-            import traceback
+# Initialize handler - must be at module level for Vercel
+def create_handler():
+    """Create the handler function for Vercel."""
+    try:
+        from mangum import Mangum  # type: ignore
+        from app.main import app  # type: ignore
+        
+        # Create Mangum handler for Vercel
+        # Mangum converts ASGI (FastAPI) to AWS Lambda/API Gateway format
+        # Vercel's Python runtime uses AWS Lambda-compatible format
+        return Mangum(app, lifespan="off")
+        
+    except Exception as e:
+        # If there's an import error, create a simple error handler
+        def error_handler(event, context):
+            error_details = {
+                'error': f'Import error: {str(e)}',
+                'traceback': traceback.format_exc(),
+                'backend_path': backend_path,
+                'sys_path': sys.path[:3]  # First 3 entries for debugging
+            }
             return {
                 'statusCode': 500,
                 'headers': {'Content-Type': 'application/json'},
-                'body': json.dumps({
-                    'error': f'Handler error: {str(e)}',
-                    'traceback': traceback.format_exc()
-                })
+                'body': json.dumps(error_details)
             }
-except Exception as e:
-    # If there's an import error, create a simple error handler
-    import json
-    import traceback
-    def handler(event, context):
-        error_details = {
-            'error': f'Import error: {str(e)}',
-            'traceback': traceback.format_exc()
-        }
-        return {
-            'statusCode': 500,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps(error_details)
-        }
+        return error_handler
+
+# Create handler at module level - required for Vercel
+handler = create_handler()
 
