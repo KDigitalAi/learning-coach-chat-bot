@@ -20,8 +20,8 @@ if backend_path not in sys.path:
 def create_handler():
     """Create the handler function for Vercel."""
     try:
-        from mangum import Mangum
-        from app.main import app
+        from mangum import Mangum  # type: ignore # Package installed but IDE may not detect it
+        from app.main import app  # type: ignore # Path added dynamically at runtime
         
         # Create Mangum handler for Vercel
         handler_instance = Mangum(app, lifespan="off")
