@@ -26,6 +26,14 @@ wheels/
 # Environment
 .env
 .env.local
+.env.*.local
+
+# Database
+*.sqlite3
+*.db
+chroma_db/
+backend/data/chroma_db/
+backend/chroma_db/
 
 # IDE
 .vscode/

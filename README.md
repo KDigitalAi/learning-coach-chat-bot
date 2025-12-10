@@ -10,6 +10,31 @@ An AI-powered learning companion that uses the Socratic method to help learners 
 - **Session-based History**: Remembers conversation context (with user consent)
 - **Smart Heuristics**: Detects confusion/confidence states to adapt teaching style
 
+## 📁 Project Structure
+
+```
+LearningCoach/
+├── backend/          # FastAPI backend application
+│   ├── app/          # Main application package
+│   ├── database/     # Database schemas & migrations
+│   ├── data/         # Local data storage (ChromaDB)
+│   └── requirements.txt
+├── frontend/         # Frontend HTML/CSS/JS files
+│   ├── index.html
+│   ├── script.js
+│   ├── style.css
+│   └── assets/       # Static assets (images, etc.)
+├── api/              # Vercel serverless function handler
+│   └── index.py
+├── docs/             # Project documentation
+│   ├── DEPLOYMENT_CHECKLIST.md
+│   ├── LOCAL_DEVELOPMENT.md
+│   ├── VERCEL_DEPLOYMENT.md
+│   └── QUICK_START.md
+├── vercel.json       # Vercel configuration
+└── README.md         # This file
+```
+
 ## 🏗️ Architecture
 
 ### Backend (FastAPI)
@@ -20,9 +45,9 @@ An AI-powered learning companion that uses the Socratic method to help learners 
 - **Learning Patterns**: Analyzes and stores user learning behavior
 - **Framework**: LangChain for AI interactions
 
-### Frontend (React)
-- Modern chat interface
-- SSE client for streaming
+### Frontend
+- Simple HTML/CSS/JavaScript interface
+- SSE client for streaming responses
 - Onboarding/consent flow
 - Responsive design
 
@@ -30,7 +55,6 @@ An AI-powered learning companion that uses the Socratic method to help learners 
 
 ### Prerequisites
 - Python 3.8+
-- Node.js 16+
 - Supabase account (free tier available)
 
 ### Backend Setup
@@ -57,35 +81,27 @@ SESSION_SECRET_KEY=your_secret_key
    - Create project at https://supabase.com
    - Run SQL schema from `backend/database/schema.sql` in Supabase SQL Editor
 
-4. Run the server:
+5. Run the server:
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
 ### Frontend Setup
 
-1. Navigate to frontend directory:
+The frontend is a static site. For local development:
+
+1. Open `frontend/index.html` directly in a browser, or
+2. Use a simple HTTP server:
 ```bash
 cd frontend
+python -m http.server 8001
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+The frontend expects the backend API at `http://localhost:8000` when running locally.
 
-3. Run development server:
-```bash
-npm run dev
-```
+### Deployment
 
-4. Open the URL shown in the terminal (typically `http://localhost:5173`) in your browser
-
-### Deployment (Vercel)
-
-- This repository includes a `vercel.json` that builds the Vite frontend from `frontend/` and serves the SPA via `index.html` rewrites.
-- Set the env var `VITE_API_BASE_URL` in Vercel to the publicly reachable backend URL (e.g. `https://your-backend-host`). Leave it blank locally to use the Vite dev proxy.
-- Vercel build uses `npm ci && npm run build` inside `frontend` and publishes `frontend/dist`.
+See `docs/VERCEL_DEPLOYMENT.md` for Vercel deployment instructions.
 
 ## 📚 API Endpoints
 
@@ -96,6 +112,9 @@ Update user consent for storing conversation history.
 Main chat endpoint with Dynamic Model Router.
 - Accepts: `{"message": "...", "session_id": "..."}`
 - Returns: Server-Sent Events stream
+
+### GET `/health`
+Health check endpoint.
 
 ## 🎓 How It Works
 
@@ -111,8 +130,14 @@ Main chat endpoint with Dynamic Model Router.
 
 All configuration is done via environment variables. See `backend/ENV_SETUP.md` for details.
 
+## 📝 Documentation
+
+- **Backend**: `backend/README.md`
+- **Environment Setup**: `backend/ENV_SETUP.md`
+- **Deployment**: `docs/VERCEL_DEPLOYMENT.md`
+- **Local Development**: `docs/LOCAL_DEVELOPMENT.md`
+- **Quick Start**: `docs/QUICK_START.md`
+
 ## 📝 License
 
 MIT
-
-
