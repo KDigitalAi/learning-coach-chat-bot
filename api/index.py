@@ -21,26 +21,17 @@ try:
     from app.main import app
     
     # Create Mangum handler - this is what Vercel will call
-    # Mangum handles async FastAPI app conversion to Lambda format
     handler = Mangum(app, lifespan="off")
-    
-    print("✅ Handler initialized successfully")
     
 except Exception as e:
     # If import fails, create error handler
-    print(f"❌ Import error: {e}")
-    print(f"Backend path: {backend_path}")
-    print(f"Python path: {sys.path[:3]}")
-    
     def handler(event, context=None):
         error_details = {
             'error': f'Import error: {str(e)}',
             'traceback': traceback.format_exc(),
             'backend_path': backend_path,
-            'sys_path': sys.path[:3],
-            'current_dir': current_dir
+            'sys_path': sys.path[:3]
         }
-        print(f"Error handler called: {error_details}")
         return {
             'statusCode': 500,
             'headers': {'Content-Type': 'application/json'},

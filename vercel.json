@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/index.py": {
-      "runtime": "python3.12"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -19,10 +14,6 @@
     }
   ],
   "routes": [
-    {
-      "src": "/(.*\\.(html|js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot))",
-      "dest": "/$1"
-    },
     {
       "src": "/(.*)",
       "dest": "/index.html"
