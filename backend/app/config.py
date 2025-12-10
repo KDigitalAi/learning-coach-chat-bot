@@ -108,7 +108,7 @@ def get_settings() -> Settings:
             f"Missing variables: {', '.join(missing_vars)}\n\n"
             f"For local development:\n"
             f"  - Create a .env file at: {env_file_path}\n"
-            f"  - Or place it at: {root_env}\n"
+            f"  - Or place it at: {root_env_path}\n"
             f"  - Add these lines:\n"
             f"    OPENAI_API_KEY=your_openai_api_key_here\n"
             f"    SUPABASE_URL=https://your-project.supabase.co\n"
