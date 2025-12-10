@@ -31,14 +31,32 @@ def create_handler():
         # Wrap handler to ensure proper error handling
         def wrapped_handler(event, context=None):
             try:
-                return handler_instance(event, context)
+                # Log the event for debugging
+                print(f"Handler received event: method={event.get('httpMethod')}, path={event.get('path')}, rawPath={event.get('rawPath')}")
+                
+                # Call Mangum handler
+                response = handler_instance(event, context)
+                
+                # Mangum should return proper Lambda format, but ensure it's correct
+                if isinstance(response, dict) and 'statusCode' in response:
+                    return response
+                
+                # If not in Lambda format, wrap it
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps(response) if not isinstance(response, str) else response
+                }
             except Exception as e:
                 error_details = {
                     'error': f'Handler error: {str(e)}',
                     'traceback': traceback.format_exc(),
                     'event_method': event.get('httpMethod', 'UNKNOWN'),
-                    'event_path': event.get('path', 'UNKNOWN')
+                    'event_path': event.get('path', 'UNKNOWN'),
+                    'event_rawPath': event.get('rawPath', 'UNKNOWN'),
+                    'event_keys': list(event.keys())
                 }
+                print(f"Handler error: {error_details}")
                 return {
                     'statusCode': 500,
                     'headers': {'Content-Type': 'application/json'},
@@ -65,4 +83,7 @@ def create_handler():
 
 # Create handler at module level - required for Vercel
 handler = create_handler()
+
+# Export handler for Vercel (some configurations require explicit export)
+__all__ = ['handler']
 

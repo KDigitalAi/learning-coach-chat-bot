@@ -12,6 +12,14 @@
       "dest": "/api/index"
     },
     {
+      "src": "/health",
+      "dest": "/api/index"
+    },
+    {
+      "src": "/",
+      "dest": "/api/index"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
