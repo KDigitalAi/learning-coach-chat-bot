@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Coach - AI Learning Companion</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>Learning Coach</h1>
+            <p class="subtitle">Your AI learning companion</p>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Onboarding Section -->
+        <div id="onboarding-section" class="onboarding-section">
+            <div class="onboarding-card">
+                <h2>Welcome to Learning Coach!</h2>
+                <p class="onboarding-description">Let me get to know you better so I can personalize your learning experience.</p>
+                
+                <div id="onboarding-content">
+                    <!-- Onboarding questions will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div id="chat-section" class="chat-section" style="display: none;">
+            <div class="chat-container">
+                <div id="messages-container" class="messages-container">
+                    <!-- Messages will be dynamically inserted here -->
+                </div>
+                
+                <div class="input-container">
+                    <input 
+                        type="text" 
+                        id="message-input" 
+                        class="message-input" 
+                        placeholder="Type your message..."
+                        autocomplete="off"
+                    >
+                    <button id="send-button" class="send-button">Send</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
+

@@ -47,6 +47,16 @@ async def chat(request: ChatRequest):
         if get_consent(session_id):
             conversation_history = get_conversation_history(session_id)
         
+        # Get user profile for personalization (even without consent)
+        from app.utils.session import get_user_profile
+        user_profile = get_user_profile(session_id)
+        
+        # Log profile for debugging
+        if user_profile:
+            print(f"✅ User profile loaded for session {session_id}: {user_profile}")
+        else:
+            print(f"⚠️ No user profile found for session {session_id} - personalization may be limited")
+        
         # Step 2: Heuristic Check
         heuristic_flag = check_heuristics(message)
         

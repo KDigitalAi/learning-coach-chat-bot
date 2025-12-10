@@ -2,10 +2,13 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from typing import List, Dict, AsyncIterator
 import json
+import logging
 from app.config import settings
 from app.utils.session import get_consent, get_user_profile, get_conversation_history, save_message_to_history, save_user_profile
 from app.services.learning_patterns import analyze_learning_patterns, save_learning_patterns, get_learning_patterns
 from app.services.vector_store import get_learning_style_instructions, retrieve_learning_style_vector
+
+logger = logging.getLogger(__name__)
 
 
 # Initialize OpenAI models
@@ -140,10 +143,20 @@ Return ONLY valid JSON in this format:
 
 async def stream_speed_model_response(message: str, session_id: str) -> AsyncIterator[str]:
     """Stream response from speed model."""
-    model = get_speed_model()
+    try:
+        model = get_speed_model()
+    except Exception as e:
+        logger.error(f"Failed to initialize speed model: {e}")
+        raise
     
-    # Get conversation history if consent is given
-    history = get_conversation_history(session_id) if get_consent(session_id) else []
+    # Get conversation history if consent is given (with error handling)
+    history = []
+    try:
+        if get_consent(session_id):
+            history = get_conversation_history(session_id)
+    except Exception as e:
+        logger.warning(f"Failed to get conversation history for session {session_id}: {e}")
+        # Continue without history - non-critical
     
     # Build messages with system prompt
     messages = [SystemMessage(content=SPEED_MODEL_PROMPT)]
@@ -159,63 +172,101 @@ async def stream_speed_model_response(message: str, session_id: str) -> AsyncIte
     
     # Stream response
     response_text = ""
-    async for chunk in model.astream(messages):
-        content = None
-        if isinstance(chunk, AIMessage):
-            content = chunk.content
-        elif hasattr(chunk, 'content'):
-            content = chunk.content
-        elif isinstance(chunk, str):
-            content = chunk
-        
-        if content:
-            response_text += content
-            yield content
+    try:
+        async for chunk in model.astream(messages):
+            content = None
+            if isinstance(chunk, AIMessage):
+                content = chunk.content
+            elif hasattr(chunk, 'content'):
+                content = chunk.content
+            elif isinstance(chunk, str):
+                content = chunk
+            
+            if content:
+                response_text += content
+                yield content
+    except Exception as e:
+        logger.error(f"Error streaming speed model response: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
     
-    # Save to history
-    if get_consent(session_id):
-        save_message_to_history(session_id, "user", message)
-        save_message_to_history(session_id, "assistant", response_text)
-        
-        # Analyze and save learning patterns (NEW - RAG feature)
-        # Only analyze if there's meaningful conversation (more than just greetings)
-        try:
-            history_check = get_conversation_history(session_id, limit=5)
-            if len(history_check) >= 2:  # At least 1 user message + 1 assistant response
-                patterns = analyze_learning_patterns(session_id)
-                if patterns:
-                    save_learning_patterns(session_id, patterns)
-        except Exception as e:
-            # Non-critical - don't fail the response if pattern analysis fails
-            pass
+    # Save to history (non-critical - don't fail if this fails)
+    try:
+        if get_consent(session_id):
+            save_message_to_history(session_id, "user", message)
+            save_message_to_history(session_id, "assistant", response_text)
+            
+            # Analyze and save learning patterns (NEW - RAG feature)
+            # Only analyze if there's meaningful conversation (more than just greetings)
+            try:
+                history_check = get_conversation_history(session_id, limit=5)
+                if len(history_check) >= 2:  # At least 1 user message + 1 assistant response
+                    patterns = analyze_learning_patterns(session_id)
+                    if patterns:
+                        save_learning_patterns(session_id, patterns)
+            except Exception as e:
+                # Non-critical - don't fail the response if pattern analysis fails
+                pass
+    except Exception as e:
+        logger.warning(f"Failed to save message to history: {e}")
+        # Non-critical - continue
 
 
 async def stream_quality_model_response(message: str, session_id: str) -> AsyncIterator[str]:
     """Stream response from quality model with Socratic mentoring."""
-    model = get_quality_model()
+    try:
+        model = get_quality_model()
+    except Exception as e:
+        logger.error(f"Failed to initialize quality model: {e}")
+        raise
     
     # Get conversation history (from Supabase, limited to last 50 messages for context)
-    history = get_conversation_history(session_id, limit=50) if get_consent(session_id) else []
+    # With error handling - continue without history if database fails
+    history = []
+    try:
+        if get_consent(session_id):
+            history = get_conversation_history(session_id, limit=50)
+    except Exception as e:
+        logger.warning(f"Failed to get conversation history for session {session_id}: {e}")
+        # Continue without history - non-critical
     
-    # Get user profile (onboarding data)
-    profile = get_user_profile(session_id) if get_consent(session_id) else {}
+    # Get user profile (onboarding data) - with error handling
+    # IMPORTANT: Load profile even without consent (for personalization)
+    profile = {}
+    try:
+        profile = get_user_profile(session_id)
+        if profile:
+            logger.info(f"✅ Profile loaded for session {session_id}: {profile}")
+    except Exception as e:
+        logger.warning(f"Failed to get user profile for session {session_id}: {e}")
+        # Continue without profile - non-critical
     
     # If no profile but we have history, try extracting onboarding from history
     if not profile and history and len(history) >= 10:
-        from app.utils.onboarding_extractor import extract_onboarding_from_history
-        extracted_profile = extract_onboarding_from_history(history)
-        if extracted_profile and extracted_profile.get('learningLevel'):
-            # Save extracted profile
-            try:
-                save_user_profile(session_id, extracted_profile)
-                profile = extracted_profile
-                print(f"✅ Extracted and saved onboarding from conversation history for session {session_id}")
-            except Exception as e:
-                print(f"⚠️ Error saving extracted profile: {e}")
-                profile = extracted_profile  # Use it anyway
+        try:
+            from app.utils.onboarding_extractor import extract_onboarding_from_history
+            extracted_profile = extract_onboarding_from_history(history)
+            if extracted_profile and extracted_profile.get('learningLevel'):
+                # Save extracted profile
+                try:
+                    save_user_profile(session_id, extracted_profile)
+                    profile = extracted_profile
+                    print(f"✅ Extracted and saved onboarding from conversation history for session {session_id}")
+                except Exception as e:
+                    print(f"⚠️ Error saving extracted profile: {e}")
+                    profile = extracted_profile  # Use it anyway
+        except Exception as e:
+            logger.warning(f"Failed to extract onboarding from history: {e}")
     
-    # Get learning style from VECTOR STORAGE (priority)
-    vector_style_data = retrieve_learning_style_vector(session_id) if get_consent(session_id) else None
+    # Get learning style from VECTOR STORAGE (priority) - with error handling
+    vector_style_data = None
+    try:
+        if get_consent(session_id):
+            vector_style_data = retrieve_learning_style_vector(session_id)
+    except Exception as e:
+        logger.warning(f"Failed to retrieve learning style vector for session {session_id}: {e}")
+        # Continue without vector data - non-critical
     
     # Debug: Log profile data to verify it's being retrieved
     if profile:
@@ -225,8 +276,14 @@ async def stream_quality_model_response(message: str, session_id: str) -> AsyncI
     else:
         print(f"⚠️ No vector style found for session {session_id} (may not have completed onboarding)")
     
-    # Get learning patterns (NEW - for enhanced personalization)
-    learning_patterns = get_learning_patterns(session_id) if get_consent(session_id) else {}
+    # Get learning patterns (NEW - for enhanced personalization) - with error handling
+    learning_patterns = {}
+    try:
+        if get_consent(session_id):
+            learning_patterns = get_learning_patterns(session_id)
+    except Exception as e:
+        logger.warning(f"Failed to get learning patterns for session {session_id}: {e}")
+        # Continue without patterns - non-critical
     
     # Build enhanced system prompt with personalization context
     system_prompt = SOCRATIC_MENTOR_PROMPT
@@ -238,8 +295,9 @@ async def stream_quality_model_response(message: str, session_id: str) -> AsyncI
         print(f"✅ Using vector-based learning style instructions")
     
     # Add user profile context (from onboarding - fallback if no vector)
+    # Use profile even if vector exists, to ensure all data is available
     profile_context = ""
-    if profile and not vector_style_data:
+    if profile:
         profile_context = "\n\n**About This Learner (from onboarding questions):**\n"
         if profile.get('learningLevel'):
             profile_context += f"- Learning Level: {profile['learningLevel']}\n"
@@ -320,8 +378,24 @@ async def stream_quality_model_response(message: str, session_id: str) -> AsyncI
     # Combine all contexts - VECTOR STYLE has highest priority
     if vector_style_context:
         system_prompt = SOCRATIC_MENTOR_PROMPT + vector_style_context + history_context + patterns_context
+        logger.info(f"✅ Using VECTOR-based learning style for session {session_id}")
     elif profile_context or history_context or patterns_context:
         system_prompt = SOCRATIC_MENTOR_PROMPT + profile_context + history_context + patterns_context
+        if profile_context:
+            logger.info(f"✅ Using PROFILE-based learning style for session {session_id}")
+            # Log the learning style being used
+            if profile:
+                style = profile.get('preferredStyle', 'not set')
+                logger.info(f"   → Learning Style: {style}")
+                logger.info(f"   → Learning Level: {profile.get('learningLevel', 'not set')}")
+                logger.info(f"   → Interests: {profile.get('interests', 'not set')}")
+                logger.info(f"   → Goals: {profile.get('goals', 'not set')}")
+    else:
+        system_prompt = SOCRATIC_MENTOR_PROMPT
+        logger.warning(f"⚠️ No personalization context available for session {session_id} - using default prompt")
+    
+    # Log system prompt length for debugging (first 500 chars)
+    logger.debug(f"System prompt preview (first 500 chars): {system_prompt[:500]}...")
     
     # Build messages with system prompt using LangChain message types
     messages = [SystemMessage(content=system_prompt)]
@@ -338,18 +412,24 @@ async def stream_quality_model_response(message: str, session_id: str) -> AsyncI
     
     # Stream response with validation check for quality model
     response_text = ""
-    async for chunk in model.astream(messages):
-        content = None
-        if isinstance(chunk, AIMessage):
-            content = chunk.content
-        elif hasattr(chunk, 'content'):
-            content = chunk.content
-        elif isinstance(chunk, str):
-            content = chunk
-        
-        if content:
-            response_text += content
-            yield content
+    try:
+        async for chunk in model.astream(messages):
+            content = None
+            if isinstance(chunk, AIMessage):
+                content = chunk.content
+            elif hasattr(chunk, 'content'):
+                content = chunk.content
+            elif isinstance(chunk, str):
+                content = chunk
+            
+            if content:
+                response_text += content
+                yield content
+    except Exception as e:
+        logger.error(f"Error streaming quality model response: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
     
     # Validate response starts with a question (after streaming complete)
     # Log warning if it doesn't - the prompt should enforce this
@@ -365,20 +445,24 @@ async def stream_quality_model_response(message: str, session_id: str) -> AsyncI
         if not is_question and not user_asked_directly:
             print(f"⚠️ WARNING: Quality model response doesn't start with a question. First 100 chars: {first_100}")
     
-    # Save to history
-    if get_consent(session_id):
-        save_message_to_history(session_id, "user", message)
-        save_message_to_history(session_id, "assistant", response_text)
-        
-        # Analyze and save learning patterns (NEW - RAG feature)
-        # Only analyze if there's meaningful conversation (more than just greetings)
-        try:
-            history_check = get_conversation_history(session_id, limit=5)
-            if len(history_check) >= 2:  # At least 1 user message + 1 assistant response
-                patterns = analyze_learning_patterns(session_id)
-                if patterns:
-                    save_learning_patterns(session_id, patterns)
-        except Exception as e:
-            # Non-critical - don't fail the response if pattern analysis fails
-            pass
+    # Save to history (non-critical - don't fail if this fails)
+    try:
+        if get_consent(session_id):
+            save_message_to_history(session_id, "user", message)
+            save_message_to_history(session_id, "assistant", response_text)
+            
+            # Analyze and save learning patterns (NEW - RAG feature)
+            # Only analyze if there's meaningful conversation (more than just greetings)
+            try:
+                history_check = get_conversation_history(session_id, limit=5)
+                if len(history_check) >= 2:  # At least 1 user message + 1 assistant response
+                    patterns = analyze_learning_patterns(session_id)
+                    if patterns:
+                        save_learning_patterns(session_id, patterns)
+            except Exception as e:
+                # Non-critical - don't fail the response if pattern analysis fails
+                pass
+    except Exception as e:
+        logger.warning(f"Failed to save message to history: {e}")
+        # Non-critical - continue
 
