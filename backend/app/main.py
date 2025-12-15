@@ -34,6 +34,19 @@ async def root():
 
 @app.get("/health")
 async def health():
+    """
+    Legacy health endpoint for local development.
+    Kept for backward compatibility.
+    """
+    return {"status": "healthy"}
+
+
+@app.get("/api/health")
+async def api_health():
+    """
+    Health endpoint for deployments where the API is mounted under `/api`,
+    such as Vercel (`/api/*` routed to the serverless function).
+    """
     return {"status": "healthy"}
 
 

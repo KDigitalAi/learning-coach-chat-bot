@@ -61,14 +61,16 @@ document.addEventListener('DOMContentLoaded', () => {
 // Check Backend Connection
 async function checkBackendConnection() {
     try {
-        const response = await fetch(`${API_BASE}/health`);
+        // Use /api/health so that in production (Vercel) the request
+        // goes through the `/api/*` route and reaches the FastAPI app.
+        const response = await fetch(`${API_BASE}/api/health`);
         if (response.ok) {
             console.log('✅ Backend is connected');
         } else {
-            console.warn('⚠️ Backend health check failed');
+            console.warn('⚠️ Backend health check failed:', response.status, response.statusText);
         }
     } catch (error) {
-        console.error('❌ Backend is not running. Please start it with: cd backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload');
+        console.error('❌ Backend is not running or not reachable. For local dev, start it with: cd backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload');
         // Don't show error to user yet - they might start it later
     }
 }
