@@ -49,4 +49,4 @@ async def api_health():
     """
     return {"status": "healthy"}
 
-
+#404 Fixed for Vercel deployment
