@@ -1,0 +1,8 @@
+{
+  "name": "learning-coach",
+  "version": "1.0.0",
+  "description": "Learning Coach - AI Learning Companion",
+  "scripts": {
+    "build": "node scripts/copy-frontend.js"
+  }
+}
