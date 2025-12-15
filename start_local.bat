@@ -14,7 +14,8 @@ timeout /t 3 /nobreak >nul
 echo.
 echo Starting Frontend Server...
 echo.
-start "Learning Coach Frontend" cmd /k "python -m http.server 3000"
+REM Serve the static frontend from the frontend directory
+start "Learning Coach Frontend" cmd /k "cd frontend && python -m http.server 3000"
 
 echo.
 echo ========================================
