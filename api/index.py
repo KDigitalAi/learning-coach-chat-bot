@@ -21,7 +21,27 @@ def create_handler():
     """Create the handler function for Vercel."""
     try:
         from mangum import Mangum  # type: ignore # Package installed but IDE may not detect it
-        from app.main import app  # type: ignore # Path added dynamically at runtime
+        
+        # Import app with error handling
+        try:
+            from app.main import app  # type: ignore # Path added dynamically at runtime
+        except Exception as import_error:
+            # If app import fails, create a minimal error app
+            from fastapi import FastAPI, HTTPException
+            
+            error_app = FastAPI(title="Learning Coach API - Error Mode")
+            
+            @error_app.get("/{path:path}")
+            @error_app.post("/{path:path}")
+            @error_app.put("/{path:path}")
+            @error_app.delete("/{path:path}")
+            async def error_endpoint(path: str):
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Application failed to initialize. Import error: {str(import_error)[:500]}"
+                )
+            
+            app = error_app
         
         # Create Mangum handler for Vercel
         handler_instance = Mangum(app, lifespan="off")
@@ -49,10 +69,11 @@ def create_handler():
         # If there's an import error, create a simple error handler
         def error_handler(event, context=None):
             error_details = {
-                'error': f'Import error: {str(e)}',
+                'error': f'Handler creation error: {str(e)}',
                 'traceback': traceback.format_exc(),
                 'backend_path': backend_path,
-                'sys_path': sys.path[:3]
+                'sys_path': sys.path[:3],
+                'python_version': sys.version
             }
             return {
                 'statusCode': 500,
@@ -62,4 +83,21 @@ def create_handler():
         return error_handler
 
 # Create handler at module level - required for Vercel
-handler = create_handler()
+# Wrap in try-except to ensure we always have a handler
+try:
+    handler = create_handler()
+except Exception as e:
+    # Ultimate fallback - create a handler that always returns error details
+    def fallback_handler(event, context=None):
+        error_details = {
+            'error': f'Critical handler initialization error: {str(e)}',
+            'traceback': traceback.format_exc(),
+            'backend_path': backend_path,
+            'sys_path': sys.path[:3]
+        }
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps(error_details)
+        }
+    handler = fallback_handler

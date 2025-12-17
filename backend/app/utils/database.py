@@ -18,17 +18,42 @@ def get_supabase_client() -> Client:
     global _supabase_client
     if _supabase_client is None:
         try:
-            _supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+            # Access settings with error handling
+            try:
+                supabase_url = settings.supabase_url
+                supabase_key = settings.supabase_key
+            except Exception as settings_error:
+                logger.error(f"Failed to get settings: {settings_error}")
+                raise ValueError(
+                    f"Configuration error: {str(settings_error)}. "
+                    "Please check your environment variables (SUPABASE_URL, SUPABASE_KEY)."
+                ) from settings_error
+            
+            if not supabase_url or not supabase_key:
+                raise ValueError(
+                    "Supabase configuration missing. Please set SUPABASE_URL and SUPABASE_KEY environment variables."
+                )
+            
+            _supabase_client = create_client(supabase_url, supabase_key)
             logger.info("Supabase client initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize Supabase client: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise
     return _supabase_client
 
 
 def ensure_session_exists(session_id: str) -> None:
     """Create session record if it doesn't exist."""
-    client = get_supabase_client()
+    try:
+        client = get_supabase_client()
+    except Exception as client_error:
+        logger.error(f"Cannot ensure session exists - Supabase client unavailable: {client_error}")
+        # Don't raise - allow the app to continue without database
+        # The session will be created when database is available
+        return
+    
     try:
         # Try to get existing session
         result = (
@@ -47,7 +72,8 @@ def ensure_session_exists(session_id: str) -> None:
             logger.debug(f"Created new session: {session_id}")
     except Exception as e:
         logger.error(f"Error ensuring session exists: {e}")
-        raise
+        # Don't raise - non-critical operation
+        # The app can continue without creating the session record
 
 
 def execute_query(query: str, params: Optional[Dict] = None) -> Any:

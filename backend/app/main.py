@@ -21,27 +21,43 @@ app.add_middleware(
 
 # Include routers with error handling
 # This allows the app to start even if routers fail to import
+# We wrap this in a function to defer execution and catch any import errors
+def _register_routers():
+    """Register routers with error handling."""
+    try:
+        from app.routers import chat, onboarding
+        app.include_router(onboarding.router)
+        app.include_router(chat.router)
+        logger.info("✅ Routers loaded successfully")
+        return True
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"⚠️ Warning: Failed to load routers: {e}")
+        logger.error(f"Traceback: {error_trace}")
+        logger.error("The app will start but API endpoints may not work.")
+        # Create a simple error router for missing endpoints
+        from fastapi import APIRouter, HTTPException
+        
+        error_router = APIRouter()
+        
+        @error_router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+        async def router_error(path: str):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Router initialization failed. Check logs for details. Original error: {str(e)[:200]}"
+            )
+        
+        app.include_router(error_router, prefix="/api")
+        return False
+
+# Try to register routers, but don't fail if it doesn't work
 try:
-    from app.routers import chat, onboarding
-    app.include_router(onboarding.router)
-    app.include_router(chat.router)
-    logger.info("✅ Routers loaded successfully")
+    _register_routers()
 except Exception as e:
-    logger.error(f"⚠️ Warning: Failed to load routers: {e}")
-    logger.error("The app will start but API endpoints may not work.")
-    # Create a simple error router for missing endpoints
-    from fastapi import APIRouter, HTTPException
-    
-    error_router = APIRouter()
-    
-    @error_router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-    async def router_error(path: str):
-        raise HTTPException(
-            status_code=500,
-            detail=f"Router initialization failed. Check logs for details. Original error: {str(e)}"
-        )
-    
-    app.include_router(error_router, prefix="/api")
+    logger.error(f"Critical error registering routers: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
 
 
 @app.get("/")
@@ -50,6 +66,19 @@ async def root():
         "message": "Learning Coach API",
         "version": "1.0.0",
         "status": "running"
+    }
+
+
+@app.get("/api/test")
+async def test_endpoint():
+    """
+    Minimal test endpoint that doesn't import anything.
+    Use this to verify the serverless function is working.
+    """
+    return {
+        "status": "ok",
+        "message": "API is responding",
+        "endpoint": "/api/test"
     }
 
 
@@ -62,6 +91,19 @@ async def health():
     return {"status": "healthy"}
 
 
+@app.get("/api/test")
+async def test_endpoint():
+    """
+    Minimal test endpoint that doesn't import anything.
+    Use this to verify the serverless function is working.
+    """
+    return {
+        "status": "ok",
+        "message": "API is responding",
+        "endpoint": "/api/test"
+    }
+
+
 @app.get("/api/health")
 async def api_health():
     """
@@ -69,31 +111,45 @@ async def api_health():
     such as Vercel (`/api/*` routed to the serverless function).
     This endpoint works even if settings fail to load.
     """
+    import os
+    
+    # This endpoint should NEVER fail - it's the most basic health check
+    health_status = {
+        "status": "healthy",
+        "app": "Learning Coach API",
+        "version": "1.0.0"
+    }
+    
+    # Try to check config, but don't fail if it doesn't work
     try:
-        # Try to check if settings are available (but don't fail if they're not)
         from app.config import get_settings_instance
         try:
             settings = get_settings_instance()
-            return {
-                "status": "healthy",
+            health_status.update({
                 "config_loaded": True,
-                "openai_key_set": bool(settings.openai_api_key),
-                "supabase_url_set": bool(settings.supabase_url),
-                "supabase_key_set": bool(settings.supabase_key)
-            }
+                "openai_key_set": bool(getattr(settings, 'openai_api_key', None)),
+                "supabase_url_set": bool(getattr(settings, 'supabase_url', None)),
+                "supabase_key_set": bool(getattr(settings, 'supabase_key', None))
+            })
         except Exception as config_error:
-            return {
-                "status": "healthy",
+            health_status.update({
                 "config_loaded": False,
-                "config_error": str(config_error)[:200]  # Truncate long errors
-            }
-    except Exception as e:
-        # Even if config import fails, return healthy status
-        return {
-            "status": "healthy",
+                "config_error": str(config_error)[:200]
+            })
+    except Exception as import_error:
+        health_status.update({
             "config_loaded": False,
-            "error": str(e)[:200]
-        }
+            "import_error": str(import_error)[:200]
+        })
+    
+    # Always check environment variables directly (they're always available)
+    health_status["env_vars"] = {
+        "OPENAI_API_KEY": "set" if os.getenv("OPENAI_API_KEY") else "missing",
+        "SUPABASE_URL": "set" if os.getenv("SUPABASE_URL") else "missing",
+        "SUPABASE_KEY": "set" if os.getenv("SUPABASE_KEY") else "missing"
+    }
+    
+    return health_status
 
 
 @app.get("/api/debug/config")
