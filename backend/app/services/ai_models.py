@@ -23,20 +23,32 @@ def get_router_model() -> ChatOpenAI:
 
 def get_speed_model() -> ChatOpenAI:
     """Get the speed model (fast, cheap model for simple Q&A)."""
-    return ChatOpenAI(
-        model=settings.speed_model,
-        temperature=0.7,
-        api_key=settings.openai_api_key
-    )
+    try:
+        if not settings.openai_api_key:
+            raise ValueError("OpenAI API key is missing. Please set OPENAI_API_KEY environment variable.")
+        return ChatOpenAI(
+            model=settings.speed_model,
+            temperature=0.7,
+            api_key=settings.openai_api_key
+        )
+    except Exception as e:
+        print(f"❌ Error initializing speed model: {e}")
+        raise
 
 
 def get_quality_model() -> ChatOpenAI:
     """Get the quality model (powerful model for Socratic teaching)."""
-    return ChatOpenAI(
-        model=settings.quality_model,
-        temperature=0.8,
-        api_key=settings.openai_api_key
-    )
+    try:
+        if not settings.openai_api_key:
+            raise ValueError("OpenAI API key is missing. Please set OPENAI_API_KEY environment variable.")
+        return ChatOpenAI(
+            model=settings.quality_model,
+            temperature=0.8,
+            api_key=settings.openai_api_key
+        )
+    except Exception as e:
+        print(f"❌ Error initializing quality model: {e}")
+        raise
 
 
 # Prompts
@@ -147,6 +159,11 @@ async def stream_speed_model_response(message: str, session_id: str) -> AsyncIte
         model = get_speed_model()
     except Exception as e:
         logger.error(f"Failed to initialize speed model: {e}")
+        import traceback
+        traceback.print_exc()
+        # Check if it's a configuration error
+        if "api_key" in str(e).lower() or "openai" in str(e).lower():
+            raise ValueError("OpenAI API key is missing or invalid. Please check your OPENAI_API_KEY environment variable.")
         raise
     
     # Get conversation history if consent is given (with error handling)
@@ -219,6 +236,11 @@ async def stream_quality_model_response(message: str, session_id: str) -> AsyncI
         model = get_quality_model()
     except Exception as e:
         logger.error(f"Failed to initialize quality model: {e}")
+        import traceback
+        traceback.print_exc()
+        # Check if it's a configuration error
+        if "api_key" in str(e).lower() or "openai" in str(e).lower():
+            raise ValueError("OpenAI API key is missing or invalid. Please check your OPENAI_API_KEY environment variable.")
         raise
     
     # Get conversation history (from Supabase, limited to last 50 messages for context)

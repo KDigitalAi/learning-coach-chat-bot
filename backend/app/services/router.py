@@ -8,12 +8,18 @@ from app.services.ai_models import ROUTER_PROMPT
 
 def get_router_model() -> ChatOpenAI:
     """Get the router model."""
-    return ChatOpenAI(
-        model=settings.router_model,
-        temperature=0.1,
-        api_key=settings.openai_api_key,
-        model_kwargs={"response_format": {"type": "json_object"}}
-    )
+    try:
+        if not settings.openai_api_key:
+            raise ValueError("OpenAI API key is missing. Please set OPENAI_API_KEY environment variable.")
+        return ChatOpenAI(
+            model=settings.router_model,
+            temperature=0.1,
+            api_key=settings.openai_api_key,
+            model_kwargs={"response_format": {"type": "json_object"}}
+        )
+    except Exception as e:
+        print(f"❌ Error initializing router model: {e}")
+        raise
 
 
 async def route_message(message: str, heuristic_flag: Optional[str] = None, conversation_history: list = None) -> Dict[str, str]:

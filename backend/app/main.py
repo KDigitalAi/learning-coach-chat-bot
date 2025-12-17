@@ -49,4 +49,45 @@ async def api_health():
     """
     return {"status": "healthy"}
 
+
+@app.get("/api/debug/config")
+async def debug_config():
+    """
+    Debug endpoint to check configuration status.
+    Returns configuration status without exposing sensitive values.
+    """
+    import os
+    from app.config import settings
+    
+    config_status = {
+        "status": "ok",
+        "openai_api_key_set": bool(settings.openai_api_key),
+        "openai_api_key_length": len(settings.openai_api_key) if settings.openai_api_key else 0,
+        "supabase_url_set": bool(settings.supabase_url),
+        "supabase_key_set": bool(settings.supabase_key),
+        "router_model": settings.router_model,
+        "speed_model": settings.speed_model,
+        "quality_model": settings.quality_model,
+        "env_vars": {
+            "OPENAI_API_KEY": "set" if os.getenv("OPENAI_API_KEY") else "missing",
+            "SUPABASE_URL": "set" if os.getenv("SUPABASE_URL") else "missing",
+            "SUPABASE_KEY": "set" if os.getenv("SUPABASE_KEY") else "missing",
+        }
+    }
+    
+    # Check for issues
+    issues = []
+    if not settings.openai_api_key:
+        issues.append("OPENAI_API_KEY is missing")
+    if not settings.supabase_url:
+        issues.append("SUPABASE_URL is missing")
+    if not settings.supabase_key:
+        issues.append("SUPABASE_KEY is missing")
+    
+    if issues:
+        config_status["status"] = "error"
+        config_status["issues"] = issues
+    
+    return config_status
+
 #404 Fixed for Vercel deployment
