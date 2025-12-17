@@ -127,4 +127,41 @@ def get_settings() -> Settings:
         raise ValueError(error_msg) from e
 
 
-settings = get_settings()
+# Lazy loading: Don't load settings at module level
+# This allows the app to start even if env vars are missing
+# Settings will be loaded on first access via get_settings()
+_settings_instance: Optional[Settings] = None
+
+
+def get_settings_instance() -> Settings:
+    """Get settings instance, loading it if not already loaded."""
+    global _settings_instance
+    if _settings_instance is None:
+        _settings_instance = get_settings()
+    return _settings_instance
+
+
+# For backward compatibility, create a settings object that loads lazily
+class LazySettings:
+    """Lazy settings wrapper that loads settings on first access."""
+    
+    def __getattr__(self, name: str):
+        try:
+            settings = get_settings_instance()
+            return getattr(settings, name)
+        except Exception as e:
+            # If settings fail to load, raise a helpful error
+            raise AttributeError(
+                f"Settings not available: {str(e)}. "
+                "Please check your environment variables (OPENAI_API_KEY, SUPABASE_URL, SUPABASE_KEY)."
+            ) from e
+    
+    def __bool__(self):
+        try:
+            get_settings_instance()
+            return True
+        except:
+            return False
+
+
+settings = LazySettings()

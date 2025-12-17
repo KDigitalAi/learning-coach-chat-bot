@@ -14,11 +14,17 @@ logger = logging.getLogger(__name__)
 # Initialize OpenAI models
 def get_router_model() -> ChatOpenAI:
     """Get the router model (fast, cheap model)."""
-    return ChatOpenAI(
-        model=settings.router_model,
-        temperature=0.3,
-        api_key=settings.openai_api_key
-    )
+    try:
+        if not settings.openai_api_key:
+            raise ValueError("OpenAI API key is missing. Please set OPENAI_API_KEY environment variable.")
+        return ChatOpenAI(
+            model=settings.router_model,
+            temperature=0.3,
+            api_key=settings.openai_api_key
+        )
+    except Exception as e:
+        print(f"❌ Error initializing router model: {e}")
+        raise
 
 
 def get_speed_model() -> ChatOpenAI:
