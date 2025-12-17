@@ -12,12 +12,25 @@ logger = logging.getLogger(__name__)
 
 def get_or_create_session_id(session_id: Optional[str] = None) -> str:
     """Get existing session ID or create a new one."""
-    if session_id:
-        ensure_session_exists(session_id)
-        return session_id
-    new_session_id = str(uuid.uuid4())
-    ensure_session_exists(new_session_id)
-    return new_session_id
+    try:
+        if session_id:
+            try:
+                ensure_session_exists(session_id)
+            except Exception as e:
+                logger.warning(f"Failed to ensure session exists, but continuing: {e}")
+                # Continue - session ID is still valid even if DB operation fails
+            return session_id
+        new_session_id = str(uuid.uuid4())
+        try:
+            ensure_session_exists(new_session_id)
+        except Exception as e:
+            logger.warning(f"Failed to create session in DB, but continuing: {e}")
+            # Continue - we can still use the session ID
+        return new_session_id
+    except Exception as e:
+        logger.error(f"Critical error in get_or_create_session_id: {e}", exc_info=True)
+        # Generate a session ID even if everything fails
+        return str(uuid.uuid4())
 
 
 def get_consent(session_id: str) -> bool:
@@ -38,8 +51,12 @@ def set_consent(session_id: str, consent: bool) -> None:
     """Set user consent."""
     try:
         client = get_supabase_client()
-        # Ensure session exists first
-        ensure_session_exists(session_id)
+        # Ensure session exists first (non-critical if it fails)
+        try:
+            ensure_session_exists(session_id)
+        except Exception as ensure_error:
+            logger.warning(f"Failed to ensure session exists before setting consent: {ensure_error}")
+            # Continue - we'll try to upsert anyway
         
         # UPSERT: Update if exists, insert if not
         client.table("user_sessions").upsert({
@@ -48,16 +65,30 @@ def set_consent(session_id: str, consent: bool) -> None:
         }).execute()
         logger.debug(f"Updated consent for session {session_id}: {consent}")
     except Exception as e:
-        logger.error(f"Error setting consent for session {session_id}: {e}")
-        raise
+        logger.error(f"Error setting consent for session {session_id}: {e}", exc_info=True)
+        # Don't raise - allow the app to continue without consent tracking
+        # The consent can be set later when DB is available
+        raise ValueError(f"Failed to set consent: {str(e)[:200]}")
 
 
 def save_user_profile(session_id: str, profile_data: dict) -> None:
     """Save user onboarding/profile data to Supabase and vector store."""
     try:
+        # Validate inputs
+        if not session_id or len(session_id.strip()) == 0:
+            raise ValueError("session_id cannot be empty")
+        
+        if not profile_data:
+            raise ValueError("profile_data cannot be empty")
+        
         client = get_supabase_client()
-        # Ensure session exists first
-        ensure_session_exists(session_id)
+        
+        # Ensure session exists first (non-critical if it fails)
+        try:
+            ensure_session_exists(session_id)
+        except Exception as ensure_error:
+            logger.warning(f"Failed to ensure session exists before saving profile: {ensure_error}")
+            # Continue - we'll try to upsert anyway
         
         # Extract individual fields from profile_data
         profile_record = {
@@ -71,9 +102,9 @@ def save_user_profile(session_id: str, profile_data: dict) -> None:
         
         # UPSERT profile in Supabase
         client.table("user_profiles").upsert(profile_record).execute()
-        logger.debug(f"Saved profile for session {session_id}")
+        logger.info(f"Saved profile for session {session_id}")
         
-        # ALSO store as vector in ChromaDB
+        # ALSO store as vector in ChromaDB (optional enhancement)
         try:
             from app.services.vector_store import store_learning_style_vector
             store_learning_style_vector(session_id, profile_data)
@@ -83,8 +114,9 @@ def save_user_profile(session_id: str, profile_data: dict) -> None:
             # Don't raise - vector storage is optional enhancement
             
     except Exception as e:
-        logger.error(f"Error saving profile for session {session_id}: {e}")
-        raise
+        logger.error(f"Error saving profile for session {session_id}: {e}", exc_info=True)
+        # Re-raise with more context
+        raise ValueError(f"Failed to save user profile: {str(e)[:200]}")
 
 
 def get_user_profile(session_id: str) -> dict:
