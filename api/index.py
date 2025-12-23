@@ -7,6 +7,8 @@ import os
 import json
 import traceback
 import logging
+import asyncio
+import inspect
 from pathlib import Path
 
 # Configure logging first
@@ -112,6 +114,12 @@ def create_handler():
                 # Call Mangum handler - it should handle the event conversion
                 log.info(f"Calling Mangum handler with path: {event.get('path')}")
                 response = handler_instance(event, context)
+                
+                # Check if response is a coroutine (async) - Mangum may return async responses
+                if inspect.iscoroutine(response):
+                    log.info("Response is a coroutine, awaiting it...")
+                    response = asyncio.run(response)
+                
                 log.info(f"Mangum returned response type: {type(response)}")
                 
                 # Ensure response is in correct format
