@@ -192,6 +192,7 @@ def create_handler():
         return error_handler
 
 # Create handler at module level - required for Vercel
+# This handler variable is what Vercel will call for serverless function invocations
 # Wrap in try-except to ensure we always have a handler
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -201,6 +202,9 @@ try:
     log.info("Initializing handler...")
     handler = create_handler()
     log.info("Handler initialized successfully")
+    # Verify handler is callable
+    if not callable(handler):
+        raise TypeError(f"Handler is not callable: {type(handler)}")
 except Exception as e:
     log.error(f"Critical handler initialization error: {e}", exc_info=True)
     # Ultimate fallback - create a handler that always returns error details
@@ -219,3 +223,6 @@ except Exception as e:
         }
     handler = fallback_handler
     log.warning("Using fallback handler due to initialization failure")
+
+# Export handler for Vercel (explicit export)
+__all__ = ['handler']
