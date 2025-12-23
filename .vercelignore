@@ -17,3 +17,8 @@ build/
 node_modules/
 frontend/node_modules/
 
+# Ignore local development scripts (uvicorn not used on Vercel)
+backend/start_server.bat
+start_local.bat
+start_local.sh
+
