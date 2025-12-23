@@ -102,10 +102,25 @@ def create_handler():
                 original_path = event.get('path', '')
                 log.info(f"Original path from Vercel: {original_path}")
                 
-                # Vercel routing: /api/* -> api/index.py
-                # The path in event should be the full path including /api/
-                # FastAPI routes are defined with /api/ prefix, so path should match
-                # DO NOT modify the path - let Mangum handle routing as-is
+                # CRITICAL FIX: Handle path routing for Vercel
+                # Vercel may strip /api/ prefix when routing to api/index.py
+                # FastAPI routes expect /api/ prefix, so we need to ensure it's present
+                if original_path:
+                    if original_path.startswith('/api'):
+                        # Path already has /api/ prefix - use as-is
+                        log.info(f"Path already has /api/ prefix: {original_path}")
+                    elif original_path.startswith('/'):
+                        # Path starts with / but no /api/ - prepend it
+                        event['path'] = '/api' + original_path
+                        log.info(f"Prepended /api/ to path: {original_path} -> {event['path']}")
+                    else:
+                        # Relative path - prepend /api/
+                        event['path'] = '/api/' + original_path.lstrip('/')
+                        log.info(f"Fixed relative path: {original_path} -> {event['path']}")
+                else:
+                    # Empty path means /api/ root
+                    event['path'] = '/api/'
+                    log.info(f"Set empty path to: {event['path']}")
                 
                 # Also handle queryStringParameters
                 if 'queryStringParameters' in event and event['queryStringParameters']:
