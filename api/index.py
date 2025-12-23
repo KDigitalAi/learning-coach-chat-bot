@@ -7,7 +7,6 @@ This is the entry point for all /api/* routes on Vercel.
 import sys
 import os
 import json
-import traceback
 import logging
 import asyncio
 from pathlib import Path
@@ -40,6 +39,8 @@ try:
     
 except Exception as e:
     log.error(f"❌ Failed to initialize FastAPI app: {e}", exc_info=True)
+    import traceback
+    traceback.print_exc()
     # Create a minimal error handler
     def error_handler(event, context=None):
         return {
@@ -48,13 +49,13 @@ except Exception as e:
             'body': json.dumps({
                 'error': 'Failed to initialize FastAPI application',
                 'message': str(e),
-                'type': type(e).__name__
+                'type': type(e).__name__,
+                'traceback': traceback.format_exc()
             })
         }
     handler_instance = error_handler
 
 # Vercel serverless function handler
-# This function is called by Vercel for every request to /api/*
 def handler(event, context=None):
     """
     Vercel serverless function handler.
@@ -64,23 +65,49 @@ def handler(event, context=None):
     Mangum converts the event to ASGI format and passes it to FastAPI.
     """
     try:
-        # Log request for debugging
+        # Extract path and method from event
+        # Vercel may pass path in different formats depending on routing
         path = event.get('path', '')
-        method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', 'UNKNOWN'))
-        log.info(f"📥 Request: {method} {path}")
+        raw_path = event.get('rawPath', '')
+        method = event.get('httpMethod', '') or event.get('requestContext', {}).get('http', {}).get('method', 'GET')
         
-        # CRITICAL: Vercel may strip /api/ prefix when routing to api/index.py
-        # FastAPI routes expect /api/ prefix, so we need to ensure it's present
-        if path and not path.startswith('/api'):
-            # Prepend /api/ if missing
-            event['path'] = '/api' + path if path.startswith('/') else '/api/' + path
-            log.info(f"🔧 Fixed path: {path} -> {event['path']}")
-        elif not path:
-            # Empty path means root /api/
+        # Use rawPath if available (more reliable), otherwise use path
+        actual_path = raw_path if raw_path else path
+        
+        log.info(f"📥 Request: {method} | path={path} | rawPath={raw_path} | actual_path={actual_path}")
+        log.info(f"📋 Event keys: {list(event.keys())}")
+        
+        # CRITICAL FIX: Vercel routes /api/* to api/index.py
+        # The path in the event should be the FULL path including /api/
+        # FastAPI routes are defined with /api/ prefix, so path should match exactly
+        # If path doesn't start with /api/, prepend it
+        if actual_path:
+            if not actual_path.startswith('/api'):
+                # Path is missing /api/ prefix - add it
+                fixed_path = '/api' + actual_path if actual_path.startswith('/') else '/api/' + actual_path
+                event['path'] = fixed_path
+                if 'rawPath' in event:
+                    event['rawPath'] = fixed_path
+                log.info(f"🔧 Fixed path: {actual_path} -> {fixed_path}")
+            else:
+                # Path already has /api/ prefix - ensure event uses it
+                event['path'] = actual_path
+                if 'rawPath' in event:
+                    event['rawPath'] = actual_path
+                log.info(f"✅ Path already correct: {actual_path}")
+        else:
+            # Empty path - set to /api/ root
             event['path'] = '/api/'
-            log.info(f"🔧 Set empty path to: {event['path']}")
+            if 'rawPath' in event:
+                event['rawPath'] = '/api/'
+            log.info(f"🔧 Set empty path to: /api/")
+        
+        # Ensure httpMethod is set correctly
+        if 'httpMethod' not in event and method:
+            event['httpMethod'] = method
         
         # Call Mangum handler - it handles ASGI conversion and routing
+        log.info(f"🚀 Calling Mangum with path: {event.get('path')}")
         response = handler_instance(event, context)
         
         # Mangum returns a coroutine for async handlers, so we need to await it
@@ -89,18 +116,34 @@ def handler(event, context=None):
         
         # Log response
         status_code = response.get('statusCode', 500) if isinstance(response, dict) else 500
-        log.info(f"📤 Response: {status_code} for {method} {path}")
+        log.info(f"📤 Response: {status_code} for {method} {event.get('path')}")
+        
+        # Ensure CORS headers are present
+        if isinstance(response, dict) and 'headers' in response:
+            headers = response['headers']
+            if 'Access-Control-Allow-Origin' not in headers:
+                headers['Access-Control-Allow-Origin'] = '*'
+            if 'Access-Control-Allow-Methods' not in headers:
+                headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            if 'Access-Control-Allow-Headers' not in headers:
+                headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
         
         return response
         
     except Exception as e:
         log.error(f"❌ Handler error: {e}", exc_info=True)
+        import traceback
         return {
             'statusCode': 500,
-            'headers': {'Content-Type': 'application/json'},
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
             'body': json.dumps({
                 'error': 'Internal server error',
                 'message': str(e),
-                'type': type(e).__name__
+                'type': type(e).__name__,
+                'path': event.get('path', 'unknown'),
+                'traceback': traceback.format_exc()
             })
         }
