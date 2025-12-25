@@ -29,13 +29,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         "error": "Internal server error",
         "message": str(exc)[:200] if str(exc) else "An unexpected error occurred",
         "type": type(exc).__name__,
-        "path": request.url.path
+        "path": request.url.path,
+        # ALWAYS include traceback for Vercel debugging
+        "traceback": traceback.format_exc()
     }
-    
-    # In development, include traceback
-    import os
-    if os.getenv("ENVIRONMENT") == "development":
-        error_detail["traceback"] = traceback.format_exc()
     
     return JSONResponse(
         status_code=500,
