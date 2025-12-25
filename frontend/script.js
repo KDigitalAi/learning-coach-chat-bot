@@ -224,7 +224,10 @@ async function handleSendMessage() {
             let errorMessage = `Failed to get response from ${API_BASE}/api/chat: ${response.status} ${response.statusText}`;
             try {
                 const errorData = await response.json();
-                if (errorData.error || errorData.message) {
+                if (errorData.detail) {
+                     // FastAPI default error format
+                    errorMessage = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+                } else if (errorData.error || errorData.message) {
                     errorMessage = errorData.error || errorData.message;
                 }
             } catch (e) {

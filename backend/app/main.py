@@ -124,6 +124,27 @@ async def health():
     return {"status": "healthy"}
 
 
+# DEBUG: Catch-all route to diagnose 404s
+# This must be the LAST route defined
+@app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def catch_all(path_name: str, request: Request):
+    """
+    Catch-all route to return the path that was actually received.
+    This helps debug routing issues on Vercel.
+    """
+    method = request.method
+    return JSONResponse(
+        status_code=404,
+        content={
+            "detail": f"Route not found: {method} /{path_name}",
+            "received_path": f"/{path_name}",
+            "method": method,
+            "message": "This is a custom 404 from the backend catch-all route."
+        }
+    )
+
+
+
 @app.get("/api/test")
 async def test_endpoint():
     """

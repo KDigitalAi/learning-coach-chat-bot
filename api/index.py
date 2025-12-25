@@ -70,34 +70,59 @@ def handler(event, context=None):
         path = event.get('path', '')
         raw_path = event.get('rawPath', '')
         method = event.get('httpMethod', '') or event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+        headers = event.get('headers', {})
         
-        # Use rawPath if available (more reliable), otherwise use path
-        actual_path = raw_path if raw_path else path
+        # STRATEGY 1: Trust x-vercel-forwarded-path if available (standard for Vercel rewrites)
+        # This header usually contains the path BEFORE the rewrite (e.g., /api/chat)
+        forwarded_path = headers.get('x-vercel-forwarded-path') or headers.get('x-forwarded-path')
         
-        # CRITICAL FIX for Vercel Rewrites:
-        # Check for explicit path passed via Vercel rewrite query param (configured in vercel.json)
-        qs_params = event.get('queryStringParameters')
-        # Handle case where queryStringParameters might be None
-        if qs_params is None:
-            qs_params = {}
-            # Update event to ensure it's a dict for Mangum
-            if 'queryStringParameters' in event:
-                event['queryStringParameters'] = qs_params
+        if forwarded_path:
+            actual_path = forwarded_path
+            log.info(f"🎯 Using forwarded path from headers: {actual_path}")
+        else:
+            # STRATEGY 2: Fallback to rawPath or path
+            actual_path = raw_path if raw_path else path
+            log.info(f"⚠️ No forwarded path header found. Using: {actual_path}")
 
-        if '__original_path' in qs_params:
-            original_path = qs_params['__original_path']
-            log.info(f"🎯 Found explicit path in query params: {original_path}")
-            actual_path = original_path
-            # Remove it from params so app doesn't see it (though harmless)
-            # We modify the dictionary in place which updates the event object reference if it was linked
-            # But just to be safe, we leave it or remove it. Removing is cleaner.
-            try:
-                del qs_params['__original_path']
-            except:
-                pass
+        # CLEANUP: Ensure path handling is robust
+        # If we somehow got the rewrite destination, we are in trouble, but let's try to fix it
+        if actual_path.endswith('/api/index.py') or actual_path.endswith('/api/index'):
+             log.warning(f"🚨 Path is still pointing to index.py: {actual_path}. This indicates headers were missing.")
+             # No good fallback here without headers, but maybe we can guess? 
+             # For now, let it pass and let the catch-all route debug it.
 
-        # If still pointing to index.py, try header recovery
-        if actual_path.endswith('/api/index') or actual_path.endswith('/api/index.py'):
+        log.info(f"📥 Request: {method} | path={path} | forwarded={forwarded_path} | actual_path={actual_path}")
+        
+        # CRITICAL: FastAPI routers are mounted with /api prefix
+        # We must ensure the path starts with /api
+        if actual_path:
+            if not actual_path.startswith('/api'):
+                # Path is missing /api/ prefix - add it
+                # But be careful: if actual_path is just "/", do we want "/api/"?
+                fixed_path = '/api' + actual_path if actual_path.startswith('/') else '/api/' + actual_path
+                # Special case: if it became /api//chat, fix it
+                fixed_path = fixed_path.replace('/api//', '/api/')
+                
+                event['path'] = fixed_path
+                if 'rawPath' in event:
+                    event['rawPath'] = fixed_path
+                log.info(f"🔧 Fixed path: {actual_path} -> {fixed_path}")
+            else:
+                # Path already has /api/ prefix - ensure event uses it
+                event['path'] = actual_path
+                if 'rawPath' in event:
+                    event['rawPath'] = actual_path
+                log.info(f"✅ Path already correct: {actual_path}")
+        else:
+            # Empty path - set to /api/ root
+            event['path'] = '/api/'
+            if 'rawPath' in event:
+                event['rawPath'] = '/api/'
+            log.info(f"🔧 Set empty path to: /api/")
+        
+        # Ensure httpMethod is set correctly
+        if 'httpMethod' not in event and method:
+            event['httpMethod'] = method
             headers = event.get('headers', {})
             # Try standard Vercel/proxy headers for original path
             forwarded_path = headers.get('x-vercel-forwarded-path') or headers.get('x-forwarded-path')
