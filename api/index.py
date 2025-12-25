@@ -76,6 +76,9 @@ def handler(event, context=None):
         # This header usually contains the path BEFORE the rewrite (e.g., /api/chat)
         forwarded_path = headers.get('x-vercel-forwarded-path') or headers.get('x-forwarded-path')
         
+        # DEBUG: Log all relevant headers to understand what Vercel is sending
+        log.info(f"🔎 Headers dump: x-vercel-forwarded-path={headers.get('x-vercel-forwarded-path')}, x-forwarded-path={headers.get('x-forwarded-path')}, host={headers.get('host')}")
+        
         if forwarded_path:
             actual_path = forwarded_path
             log.info(f"🎯 Using forwarded path from headers: {actual_path}")
