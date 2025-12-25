@@ -75,8 +75,28 @@ def handler(event, context=None):
         actual_path = raw_path if raw_path else path
         
         # CRITICAL FIX for Vercel Rewrites:
-        # If the path matches the rewrite destination (/api/index), try to recover the original path
-        # from Vercel headers. This happens when Vercel passes the rewritten path to the lambda.
+        # Check for explicit path passed via Vercel rewrite query param (configured in vercel.json)
+        qs_params = event.get('queryStringParameters')
+        # Handle case where queryStringParameters might be None
+        if qs_params is None:
+            qs_params = {}
+            # Update event to ensure it's a dict for Mangum
+            if 'queryStringParameters' in event:
+                event['queryStringParameters'] = qs_params
+
+        if '__original_path' in qs_params:
+            original_path = qs_params['__original_path']
+            log.info(f"🎯 Found explicit path in query params: {original_path}")
+            actual_path = original_path
+            # Remove it from params so app doesn't see it (though harmless)
+            # We modify the dictionary in place which updates the event object reference if it was linked
+            # But just to be safe, we leave it or remove it. Removing is cleaner.
+            try:
+                del qs_params['__original_path']
+            except:
+                pass
+
+        # If still pointing to index.py, try header recovery
         if actual_path.endswith('/api/index') or actual_path.endswith('/api/index.py'):
             headers = event.get('headers', {})
             # Try standard Vercel/proxy headers for original path
