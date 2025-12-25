@@ -171,6 +171,12 @@ def handler(event, context=None):
         
         # Call Mangum handler - it handles ASGI conversion and routing
         log.info(f"🚀 Calling Mangum with path: {event.get('path')}")
+        
+        # Check for empty body on POST requests (common Vercel issue)
+        if event.get('httpMethod') == 'POST' and not event.get('body') and not event.get('isBase64Encoded'):
+             log.warning("⚠️ Received POST request with empty body")
+             # We let Mangum handle it, but it's good to know
+
         response = handler_instance(event, context)
         
         # Mangum returns a coroutine for async handlers, so we need to await it

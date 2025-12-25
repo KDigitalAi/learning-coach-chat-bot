@@ -2,8 +2,20 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/chat",
       "destination": "/api/index.py"
+    },
+    {
+      "source": "/api/health",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/api/onboarding/(.*)",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/api/test",
+      "destination": "/api/test.py"
     }
   ]
 }
