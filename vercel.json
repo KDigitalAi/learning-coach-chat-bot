@@ -16,16 +16,6 @@
     {
       "source": "/api/test",
       "destination": "/api/test.py"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/public/$1"
     }
-  ],
-  "functions": {
-    "api/*.py": {
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  }
+  ]
 }
