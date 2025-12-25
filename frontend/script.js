@@ -221,7 +221,7 @@ async function handleSendMessage() {
             }
             
             // Try to get error message from response
-            let errorMessage = `Failed to get response: ${response.status} ${response.statusText}`;
+            let errorMessage = `Failed to get response from ${API_BASE}/api/chat: ${response.status} ${response.statusText}`;
             try {
                 const errorData = await response.json();
                 if (errorData.error || errorData.message) {

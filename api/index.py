@@ -74,6 +74,21 @@ def handler(event, context=None):
         # Use rawPath if available (more reliable), otherwise use path
         actual_path = raw_path if raw_path else path
         
+        # CRITICAL FIX for Vercel Rewrites:
+        # If the path matches the rewrite destination (/api/index), try to recover the original path
+        # from Vercel headers. This happens when Vercel passes the rewritten path to the lambda.
+        if actual_path.endswith('/api/index') or actual_path.endswith('/api/index.py'):
+            headers = event.get('headers', {})
+            # Try standard Vercel/proxy headers for original path
+            forwarded_path = headers.get('x-vercel-forwarded-path') or headers.get('x-forwarded-path')
+            # Also check if query string needs to be appended (rawPath usually has it, but forwarded_path might not)
+            if forwarded_path:
+                # If we have query parameters in the event, we might need to append them
+                # But usually purely for routing in FastAPI, path is enough.
+                # However, rawQueryString might be separate.
+                actual_path = forwarded_path
+                log.info(f"🔄 Recovered original path from headers: {actual_path}")
+
         log.info(f"📥 Request: {method} | path={path} | rawPath={raw_path} | actual_path={actual_path}")
         log.info(f"📋 Event keys: {list(event.keys())}")
         
