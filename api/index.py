@@ -46,13 +46,7 @@ def handler(event, context=None):
         # Vercel may pass the original path in different places when using rewrites
         original_path = None
         
-        # Method 1: Check query string FIRST (we're explicitly passing it in rewrite)
-        # This is the most reliable method since we control it
-        if query and query.get('path'):
-            original_path = query['path']
-            log.info(f"✅ Found in query string: {original_path}")
-        
-        # Method 2: Check Vercel-specific headers (fallback if query not available)
+        # Method 1: Check Vercel-specific headers FIRST (most reliable for rewrites)
         if not original_path:
             for header_name in ['x-vercel-rewrite-path', 'x-vercel-forwarded-path', 'x-forwarded-path', 'x-invoke-path']:
                 if header_name in headers_lower:
