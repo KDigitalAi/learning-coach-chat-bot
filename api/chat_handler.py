@@ -88,11 +88,16 @@ def handler(event, context=None):
             log.info(f"⚠️ No forwarded path header found. Using: {actual_path}")
 
         # STRATEGY 3 (Emergency Fallback):
-        # If we are stuck at /api/index.py and it's a POST, it's 99% likely a chat request
+        # If we are stuck at /api/chat_handler.py and it's a POST, it's 99% likely a chat request
         # This fixes the "404" if headers are stripped by a proxy or Vercel
-        if (actual_path.endswith('/api/index.py') or actual_path.endswith('/api/index')) and method == 'POST':
-            log.warning(f"🚨 EMERGENCY ROUTING: Path is {actual_path} but method is POST. Forcing /api/chat")
-            actual_path = "/api/chat"
+        if (actual_path.endswith('/api/chat_handler.py') or actual_path.endswith('/api/chat_handler')):
+            if method == 'POST':
+                log.warning(f"🚨 EMERGENCY ROUTING: Path is {actual_path} but method is POST. Forcing /api/chat")
+                actual_path = "/api/chat"
+            elif method == 'GET':
+                 # If it's GET /api/chat_handler.py, it might be a health check or just hitting the root of the function
+                 log.warning(f"🚨 EMERGENCY ROUTING: Path is {actual_path} and method is GET. Defaulting to /api/health")
+                 actual_path = "/api/health"
 
         log.info(f"📥 Request: {method} | path={path} | forwarded={forwarded_path} | actual_path={actual_path}")
         

@@ -3,19 +3,29 @@
   "rewrites": [
     {
       "source": "/api/chat",
-      "destination": "/api/index.py"
+      "destination": "/api/chat_handler.py"
     },
     {
       "source": "/api/health",
-      "destination": "/api/index.py"
+      "destination": "/api/chat_handler.py"
     },
     {
       "source": "/api/onboarding/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/chat_handler.py"
     },
     {
-      "source": "/api/test",
-      "destination": "/api/test.py"
+      "source": "/api/status",
+      "destination": "/api/status.py"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/public/$1"
     }
-  ]
+  ],
+  "functions": {
+    "api/*.py": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  }
 }
