@@ -3,7 +3,12 @@ Vector storage service for learning styles and onboarding data.
 Uses Supabase PostgreSQL with pgvector extension for vector embeddings.
 """
 from typing import Dict, List, Optional
-from openai import OpenAI
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+    logger.error("OpenAI package not found. Vector store will be disabled.")
+
 from app.config import settings
 from app.utils.database import get_supabase_client
 import logging
@@ -14,11 +19,18 @@ logger = logging.getLogger(__name__)
 _openai_client: Optional[OpenAI] = None
 
 
-def get_openai_client() -> OpenAI:
+def get_openai_client() -> Optional[OpenAI]:
     """Get or create OpenAI client instance."""
     global _openai_client
+    if OpenAI is None:
+        return None
+        
     if _openai_client is None:
-        _openai_client = OpenAI(api_key=settings.openai_api_key)
+        try:
+            _openai_client = OpenAI(api_key=settings.openai_api_key)
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {e}")
+            return None
     return _openai_client
 
 
@@ -26,6 +38,10 @@ def get_embeddings(text: str) -> List[float]:
     """Generate embeddings for text using OpenAI."""
     try:
         client = get_openai_client()
+        if not client:
+            logger.warning("OpenAI client not available for embeddings")
+            return []
+            
         response = client.embeddings.create(
             model="text-embedding-3-small",
             input=text

@@ -79,11 +79,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers with error handling
-# This allows the app to start even if routers fail to import
-# We wrap this in a function to defer execution and catch any import errors
+# Track router initialization status
+router_init_error = None
+
 def _register_routers():
     """Register routers with error handling."""
+    global router_init_error
     try:
         from app.routers import chat, onboarding
         app.include_router(onboarding.router)
@@ -92,33 +93,39 @@ def _register_routers():
         return True
     except Exception as e:
         import traceback
-        error_trace = traceback.format_exc()
+        router_init_error = {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
         logger.error(f"⚠️ Warning: Failed to load routers: {e}")
-        logger.error(f"Traceback: {error_trace}")
-        logger.error("The app will start but API endpoints may not work.")
-        # Create a simple error router for missing endpoints
-        from fastapi import APIRouter, HTTPException
-        
-        error_router = APIRouter()
-        
-        @error_router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-        async def router_error(path: str):
-            raise HTTPException(
-                status_code=500,
-                detail=f"Router initialization failed. Check logs for details. Original error: {str(e)[:200]}"
-            )
-        
-        app.include_router(error_router, prefix="/api")
+        logger.error(traceback.format_exc())
         return False
 
-# Try to register routers, but don't fail if it doesn't work
-try:
-    _register_routers()
-except Exception as e:
-    logger.error(f"Critical error registering routers: {e}")
-    import traceback
-    logger.error(traceback.format_exc())
-
+# Try to register routers
+if not _register_routers():
+    logger.error("CRITICAL: Routers failed to load. Setting up fallback error routes.")
+    
+    # Define fallback routes to report the error instead of 404
+    @app.api_route("/api/chat", methods=["GET", "POST"])
+    async def chat_init_error(request: Request):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Service Initialization Failed",
+                "message": "The chat service failed to start due to missing dependencies or configuration.",
+                "detail": router_init_error
+            }
+        )
+        
+    @app.api_route("/api/onboarding/consent", methods=["POST"])
+    async def onboarding_init_error(request: Request):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Service Initialization Failed",
+                "detail": router_init_error
+            }
+        )
 
 @app.get("/")
 async def root():
@@ -186,8 +193,12 @@ async def api_health():
         health_status = {
             "status": "healthy",
             "app": "Learning Coach API",
-            "version": "1.0.0"
+            "version": "1.0.0",
+            "router_init_success": router_init_error is None
         }
+        
+        if router_init_error:
+            health_status["router_init_error"] = router_init_error["error"]
         
         # Try to check config, but don't fail if it doesn't work
         try:
