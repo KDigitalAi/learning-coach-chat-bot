@@ -23,9 +23,14 @@ current_dir = Path(__file__).parent
 backend_path = current_dir.parent / "backend"
 backend_path = str(backend_path.resolve())
 
+# FORCE ADD backend to path - critical for Vercel file structure
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
     log.info(f"Added {backend_path} to Python path")
+
+# Also try adding current directory just in case
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
 
 # Import FastAPI app and Mangum
 try:
