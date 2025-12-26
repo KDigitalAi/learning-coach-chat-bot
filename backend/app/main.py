@@ -56,6 +56,20 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         }
     )
 
+# CRITICAL DEBUG: Catch specific 404s and log them loudly
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: Exception):
+    logger.error(f"❌ 404 NOT FOUND: {request.method} {request.url.path}")
+    logger.error(f"Headers: {request.headers}")
+    return JSONResponse(
+        status_code=404,
+        content={
+            "detail": f"Resource not found: {request.url.path}",
+            "method": request.method,
+            "message": "This 404 was caught by the backend application, meaning routing worked but the endpoint does not exist."
+        }
+    )
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,

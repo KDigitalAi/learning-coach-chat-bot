@@ -37,6 +37,10 @@ try:
     handler_instance = Mangum(app, lifespan="off")
     log.info("✅ FastAPI app and Mangum handler initialized successfully")
     
+    # DEBUG: Check environment variables on startup
+    log.info(f"🔑 Environment Check: OPENAI_API_KEY={'SET' if os.environ.get('OPENAI_API_KEY') else 'MISSING'}")
+    log.info(f"🔑 Environment Check: SUPABASE_URL={'SET' if os.environ.get('SUPABASE_URL') else 'MISSING'}")
+    
 except Exception as e:
     log.error(f"❌ Failed to initialize FastAPI app: {e}", exc_info=True)
     import traceback
@@ -59,10 +63,6 @@ except Exception as e:
 def handler(event, context=None):
     """
     Vercel serverless function handler.
-    
-    Vercel routes /api/* requests to this function.
-    The event contains the HTTP request details.
-    Mangum converts the event to ASGI format and passes it to FastAPI.
     """
     try:
         # Extract path and method from event
@@ -214,7 +214,7 @@ def handler(event, context=None):
                 'Access-Control-Allow-Origin': '*'
             },
             'body': json.dumps({
-                'error': 'Internal server error',
+                'error': 'Internal server error (Handler Crash)',
                 'message': str(e),
                 'type': type(e).__name__,
                 'path': event.get('path', 'unknown'),
