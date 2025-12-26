@@ -1,9 +1,9 @@
 // API Configuration
 // For local development: use FastAPI server on port 8000
-// For production/Vercel: use same origin
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+// For production/Vercel: use relative path (same origin)
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:8000'
-    : window.location.origin;
+    : '';  // Empty string means relative path (e.g., /api/chat)
 
 // Session Management
 let sessionId = null;

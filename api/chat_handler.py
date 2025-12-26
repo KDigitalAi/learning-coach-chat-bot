@@ -101,8 +101,13 @@ def handler(event, context=None):
                 actual_path = "/api/chat"
             elif method == 'GET':
                  # If it's GET /api/chat_handler.py, it might be a health check or just hitting the root of the function
-                 log.warning(f"🚨 EMERGENCY ROUTING: Path is {actual_path} and method is GET. Defaulting to /api/health")
-                 actual_path = "/api/health"
+                 # Check if it's potentially an onboarding request being misrouted
+                 if 'onboarding' in actual_path or 'consent' in actual_path:
+                      log.warning(f"🚨 EMERGENCY ROUTING: Path likely onboarding related. Defaulting to /api/health for safety.")
+                      actual_path = "/api/health"
+                 else:
+                      log.warning(f"🚨 EMERGENCY ROUTING: Path is {actual_path} and method is GET. Defaulting to /api/health")
+                      actual_path = "/api/health"
 
         log.info(f"📥 Request: {method} | path={path} | forwarded={forwarded_path} | actual_path={actual_path}")
         
