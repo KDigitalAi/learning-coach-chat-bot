@@ -178,6 +178,20 @@ async def test_endpoint():
         "endpoint": "/api/test"
     }
 
+@app.get("/api/debug/path")
+async def debug_path(request: Request):
+    """
+    Diagnostic endpoint to check what path FastAPI received.
+    This helps debug routing issues on Vercel.
+    """
+    return {
+        "received_path": request.url.path,
+        "method": request.method,
+        "query_params": dict(request.query_params),
+        "headers": {k: str(v) for k, v in request.headers.items()},
+        "message": "This shows what path FastAPI actually received"
+    }
+
 
 @app.get("/api/health")
 async def api_health():
