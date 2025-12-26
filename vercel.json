@@ -2,20 +2,8 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/api/chat",
-      "destination": "/api/chat_handler.py"
-    },
-    {
-      "source": "/api/health",
-      "destination": "/api/chat_handler.py"
-    },
-    {
-      "source": "/api/onboarding/(.*)",
-      "destination": "/api/chat_handler.py"
-    },
-    {
-      "source": "/api/status",
-      "destination": "/api/status.py"
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
     },
     {
       "source": "/(.*)",
