@@ -2,26 +2,21 @@
 
 ## Section 1: Fixes Applied
 
-### Change 1: Added Explicit Functions Configuration in vercel.json
+### Change 1: Verified vercel.json Configuration
 **What Changed:**
-- Added `functions` block to `vercel.json`
-- Specified pattern `api/*.py` to match all Python files in the `api/` directory
-- Set explicit runtime `python3.9` for Python functions
+- Verified `vercel.json` has correct rewrite configuration
+- Removed invalid runtime specification (Vercel auto-detects Python)
+- Rewrite routes `/api/(.*)` to `/api/index`
 
 **Why:**
-- Vercel auto-detection may fail in some deployment scenarios
-- Explicit configuration ensures Python runtime is recognized
-- Pattern matching ensures all Python files in `api/` are treated as serverless functions
+- Vercel auto-detects Python functions from `api/` directory and `requirements.txt`
+- Explicit runtime specification caused build error
+- Rewrite configuration correctly routes all `/api/*` requests to the handler
 
 **File Modified:** `vercel.json`
-**Lines Added:**
-```json
-"functions": {
-  "api/*.py": {
-    "runtime": "python3.9"
-  }
-}
-```
+**Configuration:**
+- Rewrite: `/api/(.*)` → `/api/index`
+- No explicit functions config needed (auto-detection works)
 
 ### Change 2: Created runtime.txt File
 **What Changed:**
@@ -49,8 +44,8 @@
 
 ### Expected Build Behavior:
 1. **Python Runtime Detection:**
-   - Vercel should detect Python runtime from `runtime.txt` and `functions` config
-   - Build logs should show: "Detected Python 3.9" or similar
+   - Vercel should detect Python runtime from `api/` directory, `requirements.txt`, and `runtime.txt`
+   - Build logs should show: "Detected Python 3.9" or "Installing Python dependencies" or similar
 
 2. **Dependency Installation:**
    - Build logs should show: "Installing dependencies from requirements.txt"
