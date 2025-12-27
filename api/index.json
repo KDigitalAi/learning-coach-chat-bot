@@ -1,6 +1,0 @@
-{
-  "memory": 1024,
-  "maxDuration": 10,
-  "includeFiles": ["backend/**"]
-}
-
